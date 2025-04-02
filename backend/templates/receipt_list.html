@@ -1,0 +1,22 @@
+{% extends "base.html" %} {% block title %}All Receipts{% endblock %} {% block
+content %}
+<h1 class="text-3xl font-bold text-gray-800 mb-6">All Receipts</h1>
+
+<div class="bg-white rounded-lg shadow border">
+  <ul class="divide-y divide-gray-200">
+    {% for receipt in data %}
+    <li>
+      <a
+        href="http://localhost:8000/api/v1/receipt/view/{{ receipt.id }}"
+        class="flex justify-between items-center p-4 hover:bg-gray-50 transition"
+      >
+        <span class="text-gray-800 font-medium"
+          >Receipt ID: {{ receipt.id }}</span
+        >
+        <span class="text-gray-500">{{ receipt.restaurant }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
