@@ -58,8 +58,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isWeb = Platform.OS === "web";
   const refreshInProgressRef = React.useRef(false);
 
-  console.log({ response });
-
   React.useEffect(() => {
     handleResponse();
   }, [response]);

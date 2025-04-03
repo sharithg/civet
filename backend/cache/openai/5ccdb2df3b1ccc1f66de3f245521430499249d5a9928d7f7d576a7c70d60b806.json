@@ -1,0 +1,31 @@
+{
+  "restaurant": "Taco Bell",
+  "address": "7230 Lawrence Pendleton Pike, IN 46226",
+  "opened": "9/1/2016 8:35:38 PM",
+  "order_number": "378752",
+  "order_type": "drive-thru",
+  "table": "",
+  "server": "DAJA G",
+  "items": [
+    {
+      "name": "Power Veg Bowl No Sour Cream",
+      "price": 4.99,
+      "quantity": 1
+    },
+    {
+      "name": "Rg Orange Crsh Fz",
+      "price": 1.99,
+      "quantity": 1
+    }
+  ],
+  "subtotal": 6.98,
+  "sales_tax": 0.63,
+  "total": 7.61,
+  "payment": {
+    "method": "Visa",
+    "amount_paid": 7.61,
+    "tip": 0
+  },
+  "copy": "customer",
+  "other_fees": []
+}

@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS other_fees;
+
+DROP TABLE IF EXISTS order_items;
+
+DROP TABLE IF EXISTS receipts;
+
+DROP TABLE IF EXISTS receipt_images;
+
+DROP TABLE IF EXISTS outings;

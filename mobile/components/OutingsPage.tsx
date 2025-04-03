@@ -31,7 +31,7 @@ type OutingData = {
 
 const fetchOutings = async () => {
   const result = await axios.get<OutingData[]>(`${API_URL}/outing`);
-  return result.data?.map((d) => ({ ...d, friends: 0, status: "active" }));
+  return result.data || [];
 };
 
 export default function OutingsPage() {
@@ -40,7 +40,7 @@ export default function OutingsPage() {
 
   const { data } = useQuery({
     queryFn: fetchOutings,
-    queryKey: [],
+    queryKey: ["outing"],
   });
 
   return (
@@ -72,7 +72,7 @@ export default function OutingsPage() {
               key={item.id}
               onPress={() =>
                 router.navigate({
-                  pathname: "/outings/details/[id]",
+                  pathname: "/dashboard/(outings)/outings/[id]",
                   params: {
                     id: item.id,
                     title: item.name,

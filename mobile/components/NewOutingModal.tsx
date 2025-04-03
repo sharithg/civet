@@ -9,9 +9,10 @@ import {
 } from "react-native";
 import axios from "axios";
 import { router } from "expo-router";
+import { API_URL } from "../utils/constants";
 
 const newOutingRequest = async (name: string) => {
-  const data = await axios.post("http://localhost:8000/api/v1/outing", {
+  const data = await axios.post(`${API_URL}/outing`, {
     name,
   });
   return data.data;
@@ -58,7 +59,7 @@ export default function NewOutingModal({
               const resp = await mutateAsync({ name: newOutingName });
               setNewOutingName("");
               router.navigate({
-                pathname: "/outings/details/[id]",
+                pathname: "/dashboard/(outings)/outings/[id]",
                 params: {
                   id: resp.id,
                   title: newOutingName,

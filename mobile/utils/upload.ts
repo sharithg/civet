@@ -12,30 +12,45 @@ export const pickDocument = async () => {
   console.log(result);
 
   if (!result.canceled) {
-    return { uri: result.assets[0].uri, fileName: result.assets[0].fileName };
+    return result;
   }
 
   return null;
 };
 
+function formDataFromImagePicker(result: ImagePicker.ImagePickerSuccessResult) {
+  const formData = new FormData();
+
+  for (const index in result.assets) {
+    const asset = result.assets[index];
+
+    console.log(`photo.${index}`);
+
+    // @ts-expect-error: special react native format for form data
+    formData.append(`photo.${index}`, {
+      uri: asset.uri,
+      name: asset.fileName ?? asset.uri.split("/").pop(),
+      type: asset.mimeType,
+    });
+
+    if (asset.exif) {
+      formData.append(`exif.${index}`, JSON.stringify(asset.exif));
+    }
+  }
+
+  return formData;
+}
+
 export const uploadImage = async (
-  uri: string,
-  fileName: string,
+  result: ImagePicker.ImagePickerSuccessResult,
   outingId: string
 ) => {
-  const match = /\.(\w+)$/.exec(fileName);
-
-  const response = await fetch(uri);
-  const blob = await response.blob();
-
-  const formData = new FormData();
-  formData.append("file", blob, fileName);
-
   try {
-    const uploadResponse = await fetch(`${API_URL}/api/v1/receipt/upload`, {
+    const uploadResponse = await fetch(`${API_URL}/receipt/upload`, {
       method: "POST",
-      body: formData,
+      body: formDataFromImagePicker(result),
       headers: {
+        Accept: "application/json",
         outingId,
       },
     });
