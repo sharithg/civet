@@ -2,6 +2,7 @@ package receipt
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,10 +82,16 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 		OrderType:      receipt.OrderType,
 		TableNumber:    receipt.Table,
 		Server:         receipt.Server,
-		Subtotal:       receipt.Subtotal,
-		SalesTax:       receipt.SalesTax,
-		Total:          receipt.Total,
-		Copy:           receipt.Copy,
+		Subtotal: sql.NullFloat64{
+			Float64: receipt.Subtotal,
+		},
+		SalesTax: sql.NullFloat64{
+			Float64: receipt.SalesTax,
+		},
+		Total: sql.NullFloat64{
+			Float64: receipt.Total,
+		},
+		Copy: receipt.Copy,
 	})
 	if err != nil {
 		return fmt.Errorf("insert into receipts: %w", err)
@@ -95,8 +102,10 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 		err = qtx.InsertOrderItem(*r.Ctx, repository.InsertOrderItemParams{
 			ReceiptID: receiptId,
 			Name:      item.Name,
-			Price:     item.Price,
-			Quantity:  int32(item.Quantity),
+			Price: sql.NullFloat64{
+				Float64: item.Price,
+			},
+			Quantity: int32(item.Quantity),
 		})
 		if err != nil {
 			return fmt.Errorf("insert into order_items: %w", err)
@@ -108,7 +117,9 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 		err = qtx.InsertOtherFee(*r.Ctx, repository.InsertOtherFeeParams{
 			ReceiptID: receiptId,
 			Name:      fee.Name,
-			Price:     fee.Price,
+			Price: sql.NullFloat64{
+				Float64: fee.Price,
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("insert into other_fees: %w", err)
@@ -219,4 +230,23 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"hash": fileInfo.ImageHash, "existing": false})
+}
+
+func (r *receiptRepository) GetReceipt(c *gin.Context) {
+	receiptId, err := uuid.Parse(c.Param("id"))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid receipt id"})
+		return
+	}
+
+	receipt, err := r.Repo.GetReceipt(*r.Ctx, receiptId)
+
+	if err != nil {
+		fmt.Println("Err: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching recept"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toReceiptResponse(receipt))
 }

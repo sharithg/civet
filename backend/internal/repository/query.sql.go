@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,6 +112,81 @@ func (q *Queries) GetOutings(ctx context.Context) ([]GetOutingsRow, error) {
 	return items, nil
 }
 
+const getReceipt = `-- name: GetReceipt :one
+SELECT r.id,
+    r.total,
+    r.restaurant,
+    r.address,
+    r.opened,
+    r.order_number,
+    r.order_type,
+    r.payment_tip,
+    r.payment_amount_paid,
+    r.table_number,
+    r.copy,
+    r.server,
+    r.sales_tax,
+    COALESCE(oi.items, '[]') AS items,
+    COALESCE(of.fees, '[]') AS fees
+FROM receipt_images ri
+    JOIN receipts r ON ri.id = r.receipt_image_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(oi.*) AS items
+        FROM order_items oi
+        GROUP BY receipt_id
+    ) oi ON r.id = oi.receipt_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(of.*) AS fees
+        FROM other_fees of
+        GROUP BY receipt_id
+    ) of ON r.id = of.receipt_id
+WHERE r.id = $1
+LIMIT 1
+`
+
+type GetReceiptRow struct {
+	ID                uuid.UUID       `json:"id"`
+	Total             sql.NullFloat64 `json:"total"`
+	Restaurant        string          `json:"restaurant"`
+	Address           string          `json:"address"`
+	Opened            time.Time       `json:"opened"`
+	OrderNumber       string          `json:"order_number"`
+	OrderType         string          `json:"order_type"`
+	PaymentTip        sql.NullFloat64 `json:"payment_tip"`
+	PaymentAmountPaid sql.NullFloat64 `json:"payment_amount_paid"`
+	TableNumber       string          `json:"table_number"`
+	Copy              string          `json:"copy"`
+	Server            string          `json:"server"`
+	SalesTax          sql.NullFloat64 `json:"sales_tax"`
+	Items             []byte          `json:"items"`
+	Fees              []byte          `json:"fees"`
+}
+
+func (q *Queries) GetReceipt(ctx context.Context, id uuid.UUID) (GetReceiptRow, error) {
+	row := q.db.QueryRow(ctx, getReceipt, id)
+	var i GetReceiptRow
+	err := row.Scan(
+		&i.ID,
+		&i.Total,
+		&i.Restaurant,
+		&i.Address,
+		&i.Opened,
+		&i.OrderNumber,
+		&i.OrderType,
+		&i.PaymentTip,
+		&i.PaymentAmountPaid,
+		&i.TableNumber,
+		&i.Copy,
+		&i.Server,
+		&i.SalesTax,
+		&i.Items,
+		&i.Fees,
+	)
+	return i, err
+}
+
 const getReceiptByHash = `-- name: GetReceiptByHash :one
 SELECT ri.id AS receipt_image_id,
     ri.hash,
@@ -181,10 +257,10 @@ GROUP BY r.id
 `
 
 type GetReceiptsForOutingRow struct {
-	Restaurant string    `json:"restaurant"`
-	OrderCount int64     `json:"order_count"`
-	Total      float64   `json:"total"`
-	ID         uuid.UUID `json:"id"`
+	Restaurant string          `json:"restaurant"`
+	OrderCount int64           `json:"order_count"`
+	Total      sql.NullFloat64 `json:"total"`
+	ID         uuid.UUID       `json:"id"`
 }
 
 func (q *Queries) GetReceiptsForOuting(ctx context.Context, outingID uuid.UUID) ([]GetReceiptsForOutingRow, error) {
@@ -252,10 +328,10 @@ VALUES ($1, $2, $3, $4)
 `
 
 type InsertOrderItemParams struct {
-	ReceiptID uuid.UUID `json:"receipt_id"`
-	Name      string    `json:"name"`
-	Price     float64   `json:"price"`
-	Quantity  int32     `json:"quantity"`
+	ReceiptID uuid.UUID       `json:"receipt_id"`
+	Name      string          `json:"name"`
+	Price     sql.NullFloat64 `json:"price"`
+	Quantity  int32           `json:"quantity"`
 }
 
 func (q *Queries) InsertOrderItem(ctx context.Context, arg InsertOrderItemParams) error {
@@ -274,9 +350,9 @@ VALUES ($1, $2, $3)
 `
 
 type InsertOtherFeeParams struct {
-	ReceiptID uuid.UUID `json:"receipt_id"`
-	Name      string    `json:"name"`
-	Price     float64   `json:"price"`
+	ReceiptID uuid.UUID       `json:"receipt_id"`
+	Name      string          `json:"name"`
+	Price     sql.NullFloat64 `json:"price"`
 }
 
 func (q *Queries) InsertOtherFee(ctx context.Context, arg InsertOtherFeeParams) error {
@@ -317,18 +393,18 @@ RETURNING id
 `
 
 type InsertReceiptParams struct {
-	ReceiptImageID uuid.UUID `json:"receipt_image_id"`
-	Restaurant     string    `json:"restaurant"`
-	Address        string    `json:"address"`
-	Opened         time.Time `json:"opened"`
-	OrderNumber    string    `json:"order_number"`
-	OrderType      string    `json:"order_type"`
-	TableNumber    string    `json:"table_number"`
-	Server         string    `json:"server"`
-	Subtotal       float64   `json:"subtotal"`
-	SalesTax       float64   `json:"sales_tax"`
-	Total          float64   `json:"total"`
-	Copy           string    `json:"copy"`
+	ReceiptImageID uuid.UUID       `json:"receipt_image_id"`
+	Restaurant     string          `json:"restaurant"`
+	Address        string          `json:"address"`
+	Opened         time.Time       `json:"opened"`
+	OrderNumber    string          `json:"order_number"`
+	OrderType      string          `json:"order_type"`
+	TableNumber    string          `json:"table_number"`
+	Server         string          `json:"server"`
+	Subtotal       sql.NullFloat64 `json:"subtotal"`
+	SalesTax       sql.NullFloat64 `json:"sales_tax"`
+	Total          sql.NullFloat64 `json:"total"`
+	Copy           string          `json:"copy"`
 }
 
 func (q *Queries) InsertReceipt(ctx context.Context, arg InsertReceiptParams) (uuid.UUID, error) {

@@ -2,6 +2,9 @@ import React from "react";
 import { SafeAreaView, ScrollView, StyleSheet } from "react-native";
 import ReceiptView from "@/components/ReceiptItem";
 import BackButton from "../../../../components/BackButton";
+import { authFetch } from "@/utils/api";
+import { useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 
 const receiptData = {
   id: "9f9d6c11-7afa-4601-91ed-87ab9ff9701d",
@@ -30,13 +33,53 @@ const receiptData = {
   fees: [],
 };
 
+export interface ReceiptItem {
+  id: string;
+  receipt_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Receipt {
+  id: string;
+  total: number;
+  restaurant: string;
+  address: string;
+  opened: string; // ISO timestamp string
+  order_number: string;
+  order_type: string;
+  payment_tip: number | null;
+  payment_amount_paid: number | null;
+  table_number: string;
+  copy: string;
+  server: string;
+  sales_tax: number;
+  items: ReceiptItem[];
+  fees: any[];
+}
+
+const fetchReceipt = async (id: string) => {
+  const result = authFetch<Receipt>(`receipt/item/${id}`);
+  return result || [];
+};
+
 export default function Receipts() {
+  const { id } = useLocalSearchParams();
+
+  const receiptId = id as string;
+
+  const { data } = useQuery({
+    queryFn: () => fetchReceipt(receiptId),
+    queryKey: [receiptId],
+  });
+
   return (
     <>
       <BackButton title={receiptData.restaurant} />
       <SafeAreaView style={styles.container}>
         <ScrollView style={{ flex: 1, backgroundColor: "#f8f8f8" }}>
-          <ReceiptView receipt={receiptData} />
+          {data && <ReceiptView receipt={data} />}
         </ScrollView>
       </SafeAreaView>
     </>

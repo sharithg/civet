@@ -20,6 +20,7 @@ type Receipt = {
 };
 
 const ReceiptView: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
+  console.log({ receipt });
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Header Info */}

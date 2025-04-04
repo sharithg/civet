@@ -48,6 +48,7 @@ func NewRouter(logger *zap.Logger, repo *repository.Queries, db *pgxpool.Pool, s
 
 	{
 		v1.POST("/receipt/upload", receiptRepository.ProcessReceipt)
+		v1.GET("/receipt/item/:id", receiptRepository.GetReceipt)
 
 		outings := v1.Group("/outing")
 		{

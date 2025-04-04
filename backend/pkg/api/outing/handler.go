@@ -76,5 +76,5 @@ func (r *Repository) GetReceipts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch receipts"})
 		return
 	}
-	c.JSON(http.StatusOK, receipts)
+	c.JSON(http.StatusOK, toOutingReceiptsResponse(receipts))
 }

@@ -123,3 +123,36 @@ select id,
     updated_at
 from users
 where sub = $1;
+
+-- name: GetReceipt :one
+SELECT r.id,
+    r.total,
+    r.restaurant,
+    r.address,
+    r.opened,
+    r.order_number,
+    r.order_type,
+    r.payment_tip,
+    r.payment_amount_paid,
+    r.table_number,
+    r.copy,
+    r.server,
+    r.sales_tax,
+    COALESCE(oi.items, '[]') AS items,
+    COALESCE(of.fees, '[]') AS fees
+FROM receipt_images ri
+    JOIN receipts r ON ri.id = r.receipt_image_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(oi.*) AS items
+        FROM order_items oi
+        GROUP BY receipt_id
+    ) oi ON r.id = oi.receipt_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(of.*) AS fees
+        FROM other_fees of
+        GROUP BY receipt_id
+    ) of ON r.id = of.receipt_id
+WHERE r.id = $1
+LIMIT 1;
