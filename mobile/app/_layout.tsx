@@ -4,7 +4,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Slot, Stack } from "expo-router";
+import { Slot, Stack, Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -38,12 +38,27 @@ export default function RootLayout() {
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={DefaultTheme}>
-          {/* <Stack>
-            <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" /> */}
-          <Slot />
+          <Tabs>
+            <Tabs.Screen
+              name="dashboard/(outings)"
+              options={{
+                title: "Home",
+                headerShown: false,
+              }}
+            />
+            <Tabs.Screen
+              name="(auth)"
+              options={{
+                href: null,
+              }}
+            />
+            <Tabs.Screen
+              name="+not-found"
+              options={{
+                href: null,
+              }}
+            />
+          </Tabs>
         </ThemeProvider>
         <Toast />
       </QueryClientProvider>
