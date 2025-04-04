@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import axios from "axios";
 import { router } from "expo-router";
-import { API_URL } from "../utils/constants";
+import { authFetch } from "@/utils/api";
 
 const newOutingRequest = async (name: string) => {
-  const data = await axios.post(`${API_URL}/outing`, {
-    name,
+  const data = await authFetch<{ id: string }>("outing", {
+    method: "POST",
+    data: { name },
   });
-  return data.data;
+  return data;
 };
 
 export default function NewOutingModal({
@@ -23,11 +23,13 @@ export default function NewOutingModal({
   setModalVisible,
   newOutingName,
   setNewOutingName,
+  refetch,
 }: {
   modalVisible: boolean;
   setModalVisible: (v: boolean) => void;
   setNewOutingName: (t: string) => void;
   newOutingName: string;
+  refetch: () => Promise<void>;
 }) {
   const { mutateAsync } = useMutation<
     { id: string },
@@ -65,6 +67,7 @@ export default function NewOutingModal({
                   title: newOutingName,
                 },
               });
+              await refetch();
             }}
             style={styles.createButton}
           >

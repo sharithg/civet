@@ -23,27 +23,31 @@ func NewRouter(logger *zap.Logger, repo *repository.Queries, db *pgxpool.Pool, s
 		log.Fatalln("error loading config")
 	}
 
-	receiptRepository := receipt.New(repo, db, storage, openai, ctx)
-	authRepository := auth.New(db, storage, openai, config, ctx)
-	outingsRepository := outing.New(repo, ctx)
+	authRepository := auth.New(db, repo, storage, openai, config, ctx)
 
 	r := gin.Default()
 
 	r.Use(middleware.Cors())
 
+	// Auth routes
+	authRoutes := r.Group("/api/v1/auth")
+	{
+		authRoutes.GET("/callback", authRepository.GoogleCallbackHandler)
+		authRoutes.GET("/login/google", authRepository.LoginGoogleHandler)
+		authRoutes.GET("/google", authRepository.AuthGoogleHandler)
+		authRoutes.POST("/token", authRepository.GoogleAuthTokenHandler)
+		authRoutes.POST("/refresh", authRepository.RefreshTokenHandler)
+		authRoutes.GET("/session", authRepository.SessionHandler)
+	}
+
 	v1 := r.Group("/api/v1")
+	v1.Use(middleware.CheckAuth(ctx, repo))
+
+	outingsRepository := outing.New(repo, ctx)
+	receiptRepository := receipt.New(repo, db, storage, openai, ctx)
+
 	{
 		v1.POST("/receipt/upload", receiptRepository.ProcessReceipt)
-
-		auth := v1.Group("/auth")
-		{
-			auth.GET("/callback", authRepository.GoogleCallbackHandler)
-			auth.GET("/login/google", authRepository.LoginGoogleHandler)
-			auth.GET("/google", authRepository.AuthGoogleHandler)
-			auth.POST("/token", authRepository.GoogleAuthTokenHandler)
-			auth.POST("/refresh", authRepository.RefreshTokenHandler)
-			auth.GET("/session", authRepository.SessionHandler)
-		}
 
 		outings := v1.Group("/outing")
 		{

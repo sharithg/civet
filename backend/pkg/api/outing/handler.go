@@ -2,11 +2,13 @@ package outing
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/sharithg/civet/internal/repository"
+	"github.com/sharithg/civet/pkg/api/auth"
 )
 
 type Repository struct {
@@ -23,13 +25,26 @@ type CreateOutingRequest struct {
 }
 
 func (r *Repository) CreateOuting(c *gin.Context) {
+
+	user, err := auth.GetUser(c)
+
+	if err != nil {
+		fmt.Println("err: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "getting user"})
+		return
+	}
+
 	var body CreateOutingRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	id, err := r.Repo.CreateNewOuting(*r.Ctx, body.Name)
+	id, err := r.Repo.CreateNewOuting(*r.Ctx, repository.CreateNewOutingParams{
+		Name:   body.Name,
+		UserID: user.ID,
+		Status: "active",
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create outing"})
 		return

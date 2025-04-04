@@ -7,3 +7,7 @@ DROP TABLE IF EXISTS receipts;
 DROP TABLE IF EXISTS receipt_images;
 
 DROP TABLE IF EXISTS outings;
+
+DROP TABLE IF EXISTS friends;
+
+DROP TABLE IF EXISTS users;

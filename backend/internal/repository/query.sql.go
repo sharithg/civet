@@ -14,13 +14,49 @@ import (
 )
 
 const createNewOuting = `-- name: CreateNewOuting :one
-INSERT INTO outings (name)
-VALUES ($1)
+INSERT INTO outings (name, user_id, status)
+VALUES ($1, $2, $3)
 RETURNING id
 `
 
-func (q *Queries) CreateNewOuting(ctx context.Context, name string) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createNewOuting, name)
+type CreateNewOutingParams struct {
+	Name   string    `json:"name"`
+	UserID uuid.UUID `json:"user_id"`
+	Status string    `json:"status"`
+}
+
+func (q *Queries) CreateNewOuting(ctx context.Context, arg CreateNewOutingParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createNewOuting, arg.Name, arg.UserID, arg.Status)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (sub, email, picture, email_verified)
+VALUES ($1, $2, $3, $4) ON CONFLICT (sub) DO
+UPDATE
+SET email = EXCLUDED.email,
+    picture = EXCLUDED.picture,
+    email_verified = EXCLUDED.email_verified,
+    updated_at = NOW()
+RETURNING id
+`
+
+type CreateUserParams struct {
+	Sub           string `json:"sub"`
+	Email         string `json:"email"`
+	Picture       string `json:"picture"`
+	EmailVerified bool   `json:"email_verified"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Sub,
+		arg.Email,
+		arg.Picture,
+		arg.EmailVerified,
+	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -30,9 +66,12 @@ const getOutings = `-- name: GetOutings :many
 SELECT o.id,
     o.name,
     o.created_at,
-    COUNT(ri.id) AS total_receipts
+    COUNT(ri.id) AS total_receipts,
+    COUNT(fr.id) AS total_friends,
+    o.status
 FROM outings o
     LEFT JOIN receipt_images ri ON o.id = ri.outing_id
+    LEFT JOIN friends fr on o.id = fr.outing_id
 GROUP BY o.id
 `
 
@@ -41,6 +80,8 @@ type GetOutingsRow struct {
 	Name          string             `json:"name"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	TotalReceipts int64              `json:"total_receipts"`
+	TotalFriends  int64              `json:"total_friends"`
+	Status        string             `json:"status"`
 }
 
 func (q *Queries) GetOutings(ctx context.Context) ([]GetOutingsRow, error) {
@@ -57,6 +98,8 @@ func (q *Queries) GetOutings(ctx context.Context) ([]GetOutingsRow, error) {
 			&i.Name,
 			&i.CreatedAt,
 			&i.TotalReceipts,
+			&i.TotalFriends,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -167,6 +210,40 @@ func (q *Queries) GetReceiptsForOuting(ctx context.Context, outingID uuid.UUID) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserBySub = `-- name: GetUserBySub :one
+select id,
+    sub,
+    email,
+    picture,
+    created_at,
+    updated_at
+from users
+where sub = $1
+`
+
+type GetUserBySubRow struct {
+	ID        uuid.UUID          `json:"id"`
+	Sub       string             `json:"sub"`
+	Email     string             `json:"email"`
+	Picture   string             `json:"picture"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetUserBySub(ctx context.Context, sub string) (GetUserBySubRow, error) {
+	row := q.db.QueryRow(ctx, getUserBySub, sub)
+	var i GetUserBySubRow
+	err := row.Scan(
+		&i.ID,
+		&i.Sub,
+		&i.Email,
+		&i.Picture,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const insertOrderItem = `-- name: InsertOrderItem :exec

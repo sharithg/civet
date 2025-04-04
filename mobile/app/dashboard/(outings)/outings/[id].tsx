@@ -10,10 +10,10 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { pickDocument, uploadImage } from "@/utils/upload";
 import Toast from "react-native-toast-message";
-import { API_URL } from "@/utils/constants";
+import { authFetch } from "@/utils/api";
+import BackButton from "../../../../components/BackButton";
 
 type ReceiptData = {
   id: string;
@@ -23,10 +23,8 @@ type ReceiptData = {
 };
 
 const fetchReceipts = async (id: string) => {
-  const result = await axios.get<ReceiptData[]>(
-    `${API_URL}/outing/${id}/receipts`
-  );
-  return result.data;
+  const result = await authFetch<ReceiptData[]>(`outing/${id}/receipts`);
+  return result;
 };
 
 export default function OutingDetailScreen() {
@@ -43,20 +41,7 @@ export default function OutingDetailScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerLeft: () => (
-            <Ionicons
-              name={backIcon}
-              size={25}
-              color="blue"
-              onPress={() => router.back()}
-            />
-          ),
-          title: title as string,
-        }}
-      />
+      <BackButton title={title as string} />
       <View style={styles.container}>
         {/* Tab Control */}
         <View style={styles.tabs}>
@@ -117,7 +102,17 @@ export default function OutingDetailScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingBottom: 20 }}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.receiptCard}>
+              <TouchableOpacity
+                style={styles.receiptCard}
+                onPress={() =>
+                  router.navigate({
+                    pathname: `/dashboard/(outings)/receipts/[id]`,
+                    params: {
+                      id: item.id,
+                    },
+                  })
+                }
+              >
                 <View style={styles.cardLeft}>
                   <MaterialCommunityIcons name="cash" size={28} color="#555" />
                   <View style={{ marginLeft: 12 }}>

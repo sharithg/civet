@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { API_URL } from "./constants";
+import { tokenCache } from "./cache";
 
 export const pickDocument = async () => {
   let result = await ImagePicker.launchImageLibraryAsync({
@@ -46,13 +47,16 @@ export const uploadImage = async (
   outingId: string
 ) => {
   try {
+    const token = await tokenCache.getToken("accessToken");
     const uploadResponse = await fetch(`${API_URL}/receipt/upload`, {
       method: "POST",
       body: formDataFromImagePicker(result),
       headers: {
         Accept: "application/json",
         outingId,
+        Authorization: `Bearer ${token}`,
       },
+      credentials: "include",
     });
 
     const data = await uploadResponse.json();

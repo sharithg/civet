@@ -14,31 +14,29 @@ import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import NewOutingModal from "./NewOutingModal";
 import { useState } from "react";
-import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { API_URL } from "../utils/constants";
-import * as AuthSession from "expo-auth-session";
+import { authFetch } from "../utils/api";
 
 type OutingData = {
   id: string;
   name: string;
   total_receipts: number;
   created_at: string;
-  friends: string;
+  total_friends: number;
   status: string;
 };
 
 const fetchOutings = async () => {
-  const result = await axios.get<OutingData[]>(`${API_URL}/outing`);
-  return result.data || [];
+  const result = authFetch<OutingData[]>("outing");
+  return result || [];
 };
 
 export default function OutingsPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newOutingName, setNewOutingName] = useState("");
 
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryFn: fetchOutings,
     queryKey: ["outing"],
   });
@@ -64,6 +62,9 @@ export default function OutingsPage() {
         newOutingName={newOutingName}
         setModalVisible={(v) => setModalVisible(v)}
         setNewOutingName={(v) => setNewOutingName(v)}
+        refetch={async () => {
+          await refetch();
+        }}
       />
       <SafeAreaView style={styles.container}>
         <ScrollView style={{ padding: 10 }}>
@@ -114,7 +115,7 @@ export default function OutingsPage() {
                   <Text
                     style={{ marginRight: 16, fontSize: 14, color: "#555" }}
                   >
-                    👥 {item.friends} friends
+                    👥 {item.total_friends} friends
                   </Text>
                   <Text style={{ fontSize: 14, color: "#555" }}>
                     💵 {item.total_receipts} receipts

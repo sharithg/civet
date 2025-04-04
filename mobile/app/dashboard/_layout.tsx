@@ -26,6 +26,12 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="(outings)/receipts/[id]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Friend struct {
+	ID        uuid.UUID          `json:"id"`
+	Name      string             `json:"name"`
+	UserID    uuid.UUID          `json:"user_id"`
+	OutingID  uuid.UUID          `json:"outing_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type OrderItem struct {
 	ID        uuid.UUID `json:"id"`
 	ReceiptID uuid.UUID `json:"receipt_id"`
@@ -29,9 +38,10 @@ type OtherFee struct {
 type Outing struct {
 	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
+	Status    string             `json:"status"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	UserID    uuid.UUID          `json:"user_id"`
 }
 
 type Receipt struct {
@@ -62,4 +72,14 @@ type ReceiptImage struct {
 	FileName string    `json:"file_name"`
 	Hash     string    `json:"hash"`
 	OutingID uuid.UUID `json:"outing_id"`
+}
+
+type User struct {
+	ID            uuid.UUID          `json:"id"`
+	Sub           string             `json:"sub"`
+	Email         string             `json:"email"`
+	Picture       string             `json:"picture"`
+	EmailVerified bool               `json:"email_verified"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }

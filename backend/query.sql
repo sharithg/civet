@@ -1,6 +1,6 @@
 -- name: CreateNewOuting :one
-INSERT INTO outings (name)
-VALUES ($1)
+INSERT INTO outings (name, user_id, status)
+VALUES ($1, $2, $3)
 RETURNING id;
 
 -- name: GetReceiptsForOuting :many
@@ -18,9 +18,12 @@ GROUP BY r.id;
 SELECT o.id,
     o.name,
     o.created_at,
-    COUNT(ri.id) AS total_receipts
+    COUNT(ri.id) AS total_receipts,
+    COUNT(fr.id) AS total_friends,
+    o.status
 FROM outings o
     LEFT JOIN receipt_images ri ON o.id = ri.outing_id
+    LEFT JOIN friends fr on o.id = fr.outing_id
 GROUP BY o.id;
 
 -- name: InsertReceiptImage :one
@@ -100,3 +103,23 @@ FROM receipt_images ri
     ) of ON r.id = of.receipt_id
 WHERE ri.hash = $1
 LIMIT 1;
+
+-- name: CreateUser :one
+INSERT INTO users (sub, email, picture, email_verified)
+VALUES ($1, $2, $3, $4) ON CONFLICT (sub) DO
+UPDATE
+SET email = EXCLUDED.email,
+    picture = EXCLUDED.picture,
+    email_verified = EXCLUDED.email_verified,
+    updated_at = NOW()
+RETURNING id;
+
+-- name: GetUserBySub :one
+select id,
+    sub,
+    email,
+    picture,
+    created_at,
+    updated_at
+from users
+where sub = $1;

@@ -58,3 +58,12 @@ sql:
           - db_type: "text"
             go_type:
               type: "string"
+
+          - db_type: "pg_catalog.bool"
+            go_type:
+              type: "bool"
+            nullable: true
+
+          - db_type: "pg_catalog.bool"
+            go_type:
+              type: "bool"

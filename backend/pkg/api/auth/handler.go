@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sharithg/civet/internal/genai"
+	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/internal/storage"
 )
 
@@ -24,15 +25,17 @@ type authRepository struct {
 	Storage *storage.Storage
 	Genai   genai.OpenAi
 	Config  *Config
+	Repo    *repository.Queries
 }
 
-func New(db *pgxpool.Pool, storage *storage.Storage, genai genai.OpenAi, config *Config, ctx *context.Context) *authRepository {
+func New(db *pgxpool.Pool, repo *repository.Queries, storage *storage.Storage, genai genai.OpenAi, config *Config, ctx *context.Context) *authRepository {
 	return &authRepository{
 		DB:      db,
 		Ctx:     ctx,
 		Storage: storage,
 		Genai:   genai,
 		Config:  config,
+		Repo:    repo,
 	}
 }
 
@@ -302,16 +305,25 @@ func (a *authRepository) GoogleAuthTokenHandler(c *gin.Context) {
 	claims, err := verifyIdToken(idToken, a.Config.ClientID)
 
 	sub := claims.Claims["sub"].(string)
+	email := claims.Claims["email"].(string)
+	picture := claims.Claims["picture"].(string)
+	emailVerified := claims.Claims["email_verified"].(bool)
 
 	if err != nil || sub == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing sub in ID token"})
 		return
 	}
 
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
 	userInfo := map[string]string{
-		"sub":     sub,
-		"email":   claims.Claims["email"].(string),
-		"picture": claims.Claims["picture"].(string),
+		"sub":           sub,
+		"email":         email,
+		"picture":       picture,
+		"emailVerified": strconv.FormatBool(emailVerified),
 	}
 
 	accessToken, refreshToken, issuedAt, err := GenerateTokens(sub, time.Duration(a.Config.JWTExpirationSeconds), a.Config.JWTSecret, time.Duration(a.Config.RefreshExpiration), userInfo)
@@ -319,6 +331,13 @@ func (a *authRepository) GoogleAuthTokenHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate internal tokens"})
 		return
 	}
+
+	_, err = a.Repo.CreateUser(*a.Ctx, repository.CreateUserParams{
+		Sub:           sub,
+		Email:         email,
+		Picture:       picture,
+		EmailVerified: emailVerified,
+	})
 
 	if platform == "web" {
 		// Set cookies
