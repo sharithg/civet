@@ -59,7 +59,7 @@ services:
     image: ghcr.io/sharithg/civet:${GIT_COMMIT_HASH:-latest}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.web.loadbalancer.server.port=8080"
+      - "traefik.http.services.web.loadbalancer.server.port=8001"
       - "traefik.http.routers.web.rule=Host(`civetmobile.xyz`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
