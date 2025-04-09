@@ -19,7 +19,6 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23.x"
           go-version-file: "./backend/go.mod"
       - name: Install dependencies
         run: go install ./cmd/api/.
@@ -68,8 +67,8 @@ jobs:
 
       - name: create env file
         run: |
-          touch ./backend/envfile
-          echo "GIT_COMMIT_HASH=${{ github.sha }}" > ./backend/envfile
+          ls -la
+          echo "GIT_COMMIT_HASH=${{ github.sha }}" > ./envfile
 
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
