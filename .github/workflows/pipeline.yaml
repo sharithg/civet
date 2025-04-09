@@ -9,6 +9,10 @@ permissions:
 
 jobs:
   run-tests:
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,10 +20,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.23.x"
+          working-directory: ./backend
       - name: Install dependencies
-        run: cd backend && go get .
+        run: |
+          pwd
+          go get .
       - name: Test with the Go CLI
-        run: cd backend && go test ./...
+        run: go test ./...
 
   build-and-push-image:
     runs-on: ubuntu-latest
