@@ -1,36 +1,27 @@
-FROM golang:1.23-bullseye as base
+# syntax=docker/dockerfile:1
 
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid 65532 \
-    small-user
+FROM golang:1.23.0
 
+# Set destination for COPY
 WORKDIR /app
 
-# Copy go mod and sum files first for caching
+# Download Go modules
 COPY go.mod go.sum ./
 RUN go mod download
-RUN go mod verify
 
-# Now copy the rest of the app
+# Copy the source code. Note the slash at the end, as explained in
+# https://docs.docker.com/reference/dockerfile/#copy
 COPY . .
 
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /main ./cmd/api
+# Build
+RUN CGO_ENABLED=0 GOOS=linux go build -o /api ./cmd/api/main.go
 
-# Final image
-FROM alpine
+# Optional:
+# To bind to a TCP port, runtime parameters must be supplied to the docker command.
+# But we can document in the Dockerfile what ports
+# the application is going to listen on by default.
+# https://docs.docker.com/reference/dockerfile/#expose
+EXPOSE 8080
 
-COPY --from=base /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=base /etc/passwd /etc/passwd
-COPY --from=base /etc/group /etc/group
-COPY --from=base /main .
-
-USER small-user:small-user
-
-CMD ["./main"]
+# Run
+CMD ["/api"]

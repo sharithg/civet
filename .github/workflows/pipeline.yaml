@@ -66,9 +66,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: create env file
-        run: |
-          ls -la
-          echo "GIT_COMMIT_HASH=${{ github.sha }}" > ./envfile
+        run: echo "GIT_COMMIT_HASH=${{ github.sha }}" > ./envfile
 
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
