@@ -21,9 +21,7 @@ jobs:
         with:
           go-version: "1.23.x"
       - name: Install dependencies
-        run: |
-          ls
-          go get .
+        run: go install ./cmd/api/.
       - name: Test with the Go CLI
         run: go test ./...
 
