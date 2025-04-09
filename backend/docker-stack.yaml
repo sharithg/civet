@@ -90,6 +90,19 @@ services:
     depends_on:
       - db
 
+secrets:
+  db_url:
+    external: true
+  minio_secret_access_key:
+    external: true
+  jwt_secret:
+    external: true
+  openai_api_key:
+    external: true
+  google_client_secret:
+    external: true
+
 volumes:
   pgdata:
   redis-data:
+  letsencrypt:

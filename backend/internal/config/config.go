@@ -43,7 +43,7 @@ type Config struct {
 func LoadConfig() *Config {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("WARNING: Error loading .env file")
 	}
 
 	jwtExpiration, _ := strconv.Atoi(getenv("JWT_EXPIRATION_SECONDS", "900")) // 15 * 60

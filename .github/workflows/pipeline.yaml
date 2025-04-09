@@ -78,4 +78,4 @@ jobs:
           host: civetmobile.xyz
           user: docker-deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          env_file: ../envfile
+          env_file: ./envfile
