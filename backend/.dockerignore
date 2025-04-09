@@ -3,3 +3,8 @@
 .gitignore
 .github
 .vscode
+data
+.venv
+scripts
+tmp
+.DS_Store
