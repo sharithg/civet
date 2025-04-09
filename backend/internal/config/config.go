@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -103,7 +104,7 @@ func readFromFile(path string) string {
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", path, err)
 	}
-	return string(content)
+	return strings.TrimSpace(string(content))
 }
 
 func getenv(key string, fallback string) string {
