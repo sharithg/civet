@@ -75,7 +75,7 @@ jobs:
         with:
           name: civet
           file: ./backend/docker-stack.yaml
-          host: 209.97.152.248
+          host: civetmobile.xyz
           user: docker-deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          env_file: ./envfile
+          env_file: ../envfile
