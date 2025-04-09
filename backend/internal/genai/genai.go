@@ -10,16 +10,18 @@ import (
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
+	"github.com/sharithg/civet/internal/config"
 )
 
 type OpenAi struct {
 	client   openai.Client
 	cacheDir string
+	Config   *config.Config
 }
 
-func NewOpenAiClient() OpenAi {
+func NewOpenAiClient(config *config.Config) OpenAi {
 	client := openai.NewClient(
-		option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
+		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 	cacheDir := "cache/openai"
 	_ = os.MkdirAll(cacheDir, os.ModePerm)

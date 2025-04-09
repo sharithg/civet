@@ -17,15 +17,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { authFetch } from "@/utils/api";
-
-type OutingData = {
-  id: string;
-  name: string;
-  total_receipts: number;
-  created_at: string;
-  total_friends: number;
-  status: string;
-};
+import { useSetAtom } from "jotai";
+import { OutingData, selectedOutingAtom } from "@/utils/state";
 
 const fetchOutings = async () => {
   const result = authFetch<OutingData[]>("outing");
@@ -35,6 +28,7 @@ const fetchOutings = async () => {
 export default function OutingsPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newOutingName, setNewOutingName] = useState("");
+  const setSelectedOuting = useSetAtom(selectedOutingAtom);
 
   const { data, refetch } = useQuery({
     queryFn: fetchOutings,
@@ -63,15 +57,16 @@ export default function OutingsPage() {
           {(data ?? []).map((item) => (
             <TouchableOpacity
               key={item.id}
-              onPress={() =>
+              onPress={() => {
                 router.navigate({
                   pathname: "/dashboard/(outings)/outings/[id]",
                   params: {
                     id: item.id,
                     title: item.name,
                   },
-                })
-              }
+                });
+                setSelectedOuting(data?.find((o) => o.id === item.id));
+              }}
             >
               <View
                 style={{
@@ -107,7 +102,7 @@ export default function OutingsPage() {
                   <Text
                     style={{ marginRight: 16, fontSize: 14, color: "#555" }}
                   >
-                    👥 {item.total_friends} friends
+                    👥 {item.friends.length} friends
                   </Text>
                   <Text style={{ fontSize: 14, color: "#555" }}>
                     💵 {item.total_receipts} receipts

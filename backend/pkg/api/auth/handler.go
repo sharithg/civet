@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sharithg/civet/internal/config"
 	"github.com/sharithg/civet/internal/genai"
 	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/internal/storage"
@@ -24,11 +25,11 @@ type authRepository struct {
 	Ctx     *context.Context
 	Storage *storage.Storage
 	Genai   genai.OpenAi
-	Config  *Config
+	Config  *config.Config
 	Repo    *repository.Queries
 }
 
-func New(db *pgxpool.Pool, repo *repository.Queries, storage *storage.Storage, genai genai.OpenAi, config *Config, ctx *context.Context) *authRepository {
+func New(db *pgxpool.Pool, repo *repository.Queries, storage *storage.Storage, genai genai.OpenAi, config *config.Config, ctx *context.Context) *authRepository {
 	return &authRepository{
 		DB:      db,
 		Ctx:     ctx,

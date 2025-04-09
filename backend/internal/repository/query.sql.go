@@ -33,6 +33,71 @@ func (q *Queries) CreateNewOuting(ctx context.Context, arg CreateNewOutingParams
 	return id, err
 }
 
+const createOrGetFriend = `-- name: CreateOrGetFriend :one
+with existing_friend as (
+    select id
+    from friends
+    where friends.user_id = $2
+        and friends.outing_id = $3
+        and $2 is not null
+    limit 1
+), inserted_friend as (
+    insert into friends (name, user_id, outing_id)
+    select $1,
+        $2,
+        $3
+    where not exists (
+            select 1
+            from existing_friend
+        )
+    returning id
+)
+select id
+from inserted_friend
+union all
+select id
+from existing_friend
+limit 1
+`
+
+type CreateOrGetFriendParams struct {
+	Name     string     `json:"name"`
+	UserID   *uuid.UUID `json:"user_id"`
+	OutingID uuid.UUID  `json:"outing_id"`
+}
+
+func (q *Queries) CreateOrGetFriend(ctx context.Context, arg CreateOrGetFriendParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createOrGetFriend, arg.Name, arg.UserID, arg.OutingID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createSplit = `-- name: CreateSplit :one
+insert into splits (friend_id, order_item_id, receipt_id, quantity)
+values ($1, $2, $3, $4)
+returning id
+`
+
+type CreateSplitParams struct {
+	FriendID    uuid.UUID `json:"friend_id"`
+	OrderItemID uuid.UUID `json:"order_item_id"`
+	ReceiptID   uuid.UUID `json:"receipt_id"`
+	Quantity    int32     `json:"quantity"`
+}
+
+func (q *Queries) CreateSplit(ctx context.Context, arg CreateSplitParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createSplit,
+		arg.FriendID,
+		arg.OrderItemID,
+		arg.ReceiptID,
+		arg.Quantity,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (sub, email, picture, email_verified)
 VALUES ($1, $2, $3, $4) ON CONFLICT (sub) DO
@@ -63,26 +128,92 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UU
 	return id, err
 }
 
+const deleteSplit = `-- name: DeleteSplit :exec
+delete from splits
+where receipt_id = $1
+`
+
+func (q *Queries) DeleteSplit(ctx context.Context, receiptID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSplit, receiptID)
+	return err
+}
+
+const getFriends = `-- name: GetFriends :many
+select fr.id,
+    fr.name
+from friends fr
+    join outings o on fr.outing_id = o.id
+    join receipt_images ri on o.id = ri.outing_id
+    join receipts r on r.receipt_image_id = ri.id
+where r.id = $1
+`
+
+type GetFriendsRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) GetFriends(ctx context.Context, id uuid.UUID) ([]GetFriendsRow, error) {
+	rows, err := q.db.Query(ctx, getFriends, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFriendsRow
+	for rows.Next() {
+		var i GetFriendsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getOutingForReceipt = `-- name: GetOutingForReceipt :one
+select o.id
+from outings o
+    join receipt_images ri on o.id = ri.outing_id
+    join receipts r on ri.id = r.receipt_image_id
+where r.id = $1
+`
+
+func (q *Queries) GetOutingForReceipt(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getOutingForReceipt, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getOutings = `-- name: GetOutings :many
 SELECT o.id,
     o.name,
     o.created_at,
-    COUNT(ri.id) AS total_receipts,
-    COUNT(fr.id) AS total_friends,
-    o.status
+    o.status,
+    COALESCE(f.friends, '[]') AS friends,
+    COALESCE(r.total_receipts, 0) AS total_receipts
 FROM outings o
-    LEFT JOIN receipt_images ri ON o.id = ri.outing_id
-    LEFT JOIN friends fr on o.id = fr.outing_id
-GROUP BY o.id
+    LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('id', fr.id, 'name', fr.name)) AS friends
+        FROM friends fr
+        WHERE fr.outing_id = o.id
+    ) f ON true
+    LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT ri.id) AS total_receipts
+        FROM receipt_images ri
+        WHERE ri.outing_id = o.id
+    ) r ON true
 `
 
 type GetOutingsRow struct {
 	ID            uuid.UUID          `json:"id"`
 	Name          string             `json:"name"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	TotalReceipts int64              `json:"total_receipts"`
-	TotalFriends  int64              `json:"total_friends"`
 	Status        string             `json:"status"`
+	Friends       []byte             `json:"friends"`
+	TotalReceipts int64              `json:"total_receipts"`
 }
 
 func (q *Queries) GetOutings(ctx context.Context) ([]GetOutingsRow, error) {
@@ -98,9 +229,9 @@ func (q *Queries) GetOutings(ctx context.Context) ([]GetOutingsRow, error) {
 			&i.ID,
 			&i.Name,
 			&i.CreatedAt,
-			&i.TotalReceipts,
-			&i.TotalFriends,
 			&i.Status,
+			&i.Friends,
+			&i.TotalReceipts,
 		); err != nil {
 			return nil, err
 		}
@@ -126,8 +257,11 @@ SELECT r.id,
     r.copy,
     r.server,
     r.sales_tax,
+    ri.bucket,
+    ri.key,
     COALESCE(oi.items, '[]') AS items,
-    COALESCE(of.fees, '[]') AS fees
+    COALESCE(of.fees, '[]') AS fees,
+    COALESCE(spl.splits, '[]') AS splits
 FROM receipt_images ri
     JOIN receipts r ON ri.id = r.receipt_image_id
     LEFT JOIN (
@@ -142,6 +276,21 @@ FROM receipt_images ri
         FROM other_fees of
         GROUP BY receipt_id
     ) of ON r.id = of.receipt_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(
+                json_build_object(
+                    'id',
+                    sp.id,
+                    'friend_id',
+                    sp.friend_id,
+                    'order_item_id',
+                    sp.order_item_id
+                )
+            ) AS splits
+        FROM splits sp
+        GROUP BY receipt_id
+    ) spl ON r.id = spl.receipt_id
 WHERE r.id = $1
 LIMIT 1
 `
@@ -160,8 +309,11 @@ type GetReceiptRow struct {
 	Copy              string          `json:"copy"`
 	Server            string          `json:"server"`
 	SalesTax          sql.NullFloat64 `json:"sales_tax"`
+	Bucket            string          `json:"bucket"`
+	Key               string          `json:"key"`
 	Items             []byte          `json:"items"`
 	Fees              []byte          `json:"fees"`
+	Splits            []byte          `json:"splits"`
 }
 
 func (q *Queries) GetReceipt(ctx context.Context, id uuid.UUID) (GetReceiptRow, error) {
@@ -181,8 +333,11 @@ func (q *Queries) GetReceipt(ctx context.Context, id uuid.UUID) (GetReceiptRow, 
 		&i.Copy,
 		&i.Server,
 		&i.SalesTax,
+		&i.Bucket,
+		&i.Key,
 		&i.Items,
 		&i.Fees,
+		&i.Splits,
 	)
 	return i, err
 }
@@ -241,6 +396,27 @@ func (q *Queries) GetReceiptByHash(ctx context.Context, hash string) (GetReceipt
 		&i.Items,
 		&i.Fees,
 	)
+	return i, err
+}
+
+const getReceiptImage = `-- name: GetReceiptImage :one
+select ri.bucket,
+    ri.key
+from receipt_images ri
+    join receipts r on ri.id = r.receipt_image_id
+where r.id = $1
+limit 1
+`
+
+type GetReceiptImageRow struct {
+	Bucket string `json:"bucket"`
+	Key    string `json:"key"`
+}
+
+func (q *Queries) GetReceiptImage(ctx context.Context, id uuid.UUID) (GetReceiptImageRow, error) {
+	row := q.db.QueryRow(ctx, getReceiptImage, id)
+	var i GetReceiptImageRow
+	err := row.Scan(&i.Bucket, &i.Key)
 	return i, err
 }
 

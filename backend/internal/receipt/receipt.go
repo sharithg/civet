@@ -27,7 +27,7 @@ type Extract struct {
 	storage      storage.Storage
 }
 
-func NewExtract(ctx context.Context, storage storage.Storage, imageBytes []byte, fname string) (*Extract, error) {
+func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenAi, imageBytes []byte, fname string) (*Extract, error) {
 	hash := sha256.Sum256(imageBytes)
 	imageHash := hex.EncodeToString(hash[:])
 	ext := strings.TrimPrefix(filepath.Ext(fname), ".")
@@ -37,7 +37,7 @@ func NewExtract(ctx context.Context, storage storage.Storage, imageBytes []byte,
 		return nil, err
 	}
 
-	openaiClient := genai.NewOpenAiClient()
+	// openaiClient := genai.NewOpenAiClient()
 
 	return &Extract{
 		ImageBytes:   imageBytes,
@@ -45,7 +45,7 @@ func NewExtract(ctx context.Context, storage storage.Storage, imageBytes []byte,
 		ImageHash:    imageHash,
 		FileExt:      ext,
 		visionClient: visionClient,
-		openaiClient: openaiClient,
+		openaiClient: openai,
 		storage:      storage,
 	}, nil
 }

@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sharithg/civet/internal/config"
 	"github.com/sharithg/civet/internal/genai"
 	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/internal/storage"
@@ -16,14 +16,19 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRouter(logger *zap.Logger, repo *repository.Queries, db *pgxpool.Pool, storage *storage.Storage, openai genai.OpenAi, ctx *context.Context) *gin.Engine {
-	config, err := auth.LoadConfig()
+type AppContext struct {
+	Logger  *zap.Logger
+	Repo    *repository.Queries
+	DB      *pgxpool.Pool
+	Storage *storage.Storage
+	OpenAI  genai.OpenAi
+	Context *context.Context
+	Config  *config.Config
+}
 
-	if err != nil {
-		log.Fatalln("error loading config")
-	}
+func NewRouter(appCtx *AppContext) *gin.Engine {
 
-	authRepository := auth.New(db, repo, storage, openai, config, ctx)
+	authRepository := auth.New(appCtx.DB, appCtx.Repo, appCtx.Storage, appCtx.OpenAI, appCtx.Config, appCtx.Context)
 
 	r := gin.Default()
 
@@ -41,14 +46,21 @@ func NewRouter(logger *zap.Logger, repo *repository.Queries, db *pgxpool.Pool, s
 	}
 
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.CheckAuth(ctx, repo))
+	v1.Use(middleware.CheckAuth(appCtx.Context, appCtx.Repo, appCtx.Config))
 
-	outingsRepository := outing.New(repo, ctx)
-	receiptRepository := receipt.New(repo, db, storage, openai, ctx)
+	outingsRepository := outing.New(appCtx.Repo, appCtx.Context)
+	receiptRepository := receipt.New(appCtx.Repo, appCtx.DB, appCtx.Storage, appCtx.OpenAI, appCtx.Context)
 
 	{
-		v1.POST("/receipt/upload", receiptRepository.ProcessReceipt)
-		v1.GET("/receipt/item/:id", receiptRepository.GetReceipt)
+		receipts := v1.Group("/receipt")
+		{
+			receipts.POST("/upload", receiptRepository.ProcessReceipt)
+			receipts.GET("/item/:id", receiptRepository.GetReceipt)
+			receipts.POST("/split", receiptRepository.SaveSplit)
+			receipts.GET("/:receipt_id/friends", receiptRepository.GetFriends)
+			receipts.POST("/friends", receiptRepository.CreateFriend)
+			receipts.POST("/friends/split", receiptRepository.CreateSplit)
+		}
 
 		outings := v1.Group("/outing")
 		{

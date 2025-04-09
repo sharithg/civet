@@ -5,16 +5,18 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/sharithg/civet/internal/config"
 )
 
 type Storage struct {
 	Client *minio.Client
 }
 
-func NewStorage() *Storage {
-	client := NewMinio()
+func NewStorage(config *config.Config) *Storage {
+	client := NewMinio(config)
 	return &Storage{Client: client}
 }
 
@@ -137,4 +139,11 @@ func (s *Storage) SetupBuckets() error {
 	}
 
 	return nil
+}
+func (s *Storage) GetObjectUrl(ctx context.Context, bucketName string, objectName string) (string, error) {
+	url, err := s.Client.PresignedGetObject(ctx, bucketName, objectName, time.Hour*24, nil)
+	if err != nil {
+		return "", err
+	}
+	return url.String(), nil
 }

@@ -1,0 +1,95 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=elliott@zenful.site"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    ports:
+      - mode: host
+        protocol: tcp
+        published: 80
+        target: 80
+      - mode: host
+        protocol: tcp
+        published: 443
+        target: 443
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sockr.sock:/var/run/docker.sock
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: receipt
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ROOTNAME
+      MINIO_ROOT_PASSWORD: CHANGEME123
+    volumes:
+      - ~/minio/data:/data
+    command: server /data --console-address ":9001"
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  api:
+    image: ghcr.io/sharithg/civet:${GIT_COMMIT_HASH:-latest}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.web.loadbalancer.server.port=8080"
+      - "traefik.http.routers.web.rule=Host(`zenful.site`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=myresolver"
+    secrets:
+      - db_url
+      - minio_secret_access_key
+      - jwt_secret
+      - openai_api_key
+      - google_client_secret
+    environment:
+      - DATABASE_URL_FILE=/run/secrets/db_url
+      - MINIIO_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_access_key
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
+      - GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret
+      - GOOGLE_CLIENT_ID=1023244446405-fd2nnurb57nhn4k20cc3p0fsjqgtc0fk.apps.googleusercontent.com
+      - MINIIO_HOST=localhost:9000
+      - MINIIO_ACCESS_KEY_ID=ROOTNAME
+      - GOOGLE_REDIRECT_URI=http://localhost:8001/api/v1/auth/callback
+      - COOKIE_NAME=civet-cookie
+      - SERVER_URL=http://localhost:8001
+      - EXPO_WEB_URL=http://localhost:8081
+      - EXPO_APP_SCHEME=exp://10.0.0.63:8081
+
+    deploy:
+      update_config:
+        order: start-first
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
+  redis-data:

@@ -1,6 +1,11 @@
 package outing
 
 import (
+	"encoding/json"
+	"log"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/pkg/api/utils"
 )
@@ -34,4 +39,41 @@ func toOutingReceiptsResponse(receipts []repository.GetReceiptsForOutingRow) []G
 	}
 
 	return rec
+}
+
+type Friend struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+type Outing struct {
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	CreatedAt     time.Time `json:"created_at"`
+	Status        string    `json:"status"`
+	Friends       []Friend  `json:"friends"`
+	TotalReceipts int64     `json:"total_receipts"`
+}
+
+func toOutingsResponse(outings []repository.GetOutingsRow) ([]Outing, error) {
+	var outingsResp []Outing
+
+	for _, outing := range outings {
+		var friends []Friend
+		if err := json.Unmarshal(outing.Friends, &friends); err != nil {
+			log.Printf("error decoding friends JSON: %v", err)
+			return nil, err
+		}
+
+		outingsResp = append(outingsResp, Outing{
+			ID:            outing.ID,
+			Name:          outing.Name,
+			CreatedAt:     outing.CreatedAt.Time,
+			Status:        outing.Status,
+			TotalReceipts: outing.TotalReceipts,
+			Friends:       friends,
+		})
+	}
+
+	return outingsResp, nil
 }

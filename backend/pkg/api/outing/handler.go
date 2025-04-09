@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/pkg/api/auth"
+	"github.com/sharithg/civet/pkg/api/utils"
 )
 
 type Repository struct {
@@ -60,7 +61,14 @@ func (r *Repository) GetOutings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outings)
+	outingsResp, err := toOutingsResponse(outings)
+
+	if err != nil {
+		utils.BadRequest(c, "error reading outings")
+		return
+	}
+
+	c.JSON(http.StatusOK, outingsResp)
 }
 
 func (r *Repository) GetReceipts(c *gin.Context) {

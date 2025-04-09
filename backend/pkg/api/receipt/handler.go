@@ -18,6 +18,7 @@ import (
 	"github.com/sharithg/civet/internal/receipt"
 	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/internal/storage"
+	"github.com/sharithg/civet/pkg/api/utils"
 )
 
 type ReceiptWithDetails struct {
@@ -195,7 +196,7 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 		return
 	}
 
-	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, data, fileHeader.Filename)
+	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, r.Genai, data, fileHeader.Filename)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "starting extraction"})
@@ -243,10 +244,129 @@ func (r *receiptRepository) GetReceipt(c *gin.Context) {
 	receipt, err := r.Repo.GetReceipt(*r.Ctx, receiptId)
 
 	if err != nil {
-		fmt.Println("Err: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching recept"})
 		return
 	}
 
-	c.JSON(http.StatusOK, toReceiptResponse(receipt))
+	url, err := r.Storage.GetObjectUrl(*r.Ctx, receipt.Bucket, receipt.Key)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching recept"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toReceiptResponse(receipt, url))
+}
+
+func (r *receiptRepository) SaveSplit(c *gin.Context) {
+
+	var body SplitInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.BadRequest(c, "invalid request")
+		return
+	}
+
+	for _, item := range body.Items {
+		itemUuid, err := uuid.Parse(item.ItemId)
+		if err != nil {
+			utils.BadRequest(c, "invalid item id")
+			return
+		}
+		friendUuid, err := uuid.Parse(item.Friend)
+		if err != nil {
+			utils.BadRequest(c, "invalid friend id")
+			return
+		}
+		r.Repo.CreateSplit(*r.Ctx, repository.CreateSplitParams{
+			FriendID:    friendUuid,
+			OrderItemID: itemUuid,
+			Quantity:    item.Quantity,
+		})
+	}
+}
+
+func (r *receiptRepository) GetFriends(c *gin.Context) {
+	receiptIdStr := c.Param("receipt_id")
+	receiptId, err := uuid.Parse(receiptIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid outing ID"})
+		return
+	}
+
+	friends, err := r.Repo.GetFriends(*r.Ctx, receiptId)
+	if err != nil {
+		fmt.Println("ERR: ", err)
+		utils.InternalServerError(c, "failed to fetch friends")
+		return
+	}
+
+	c.JSON(http.StatusOK, friends)
+}
+
+func (r *receiptRepository) CreateFriend(c *gin.Context) {
+
+	var body CreateFriendInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		fmt.Println("ERR: ", err)
+		utils.BadRequest(c, "invalid request")
+		return
+	}
+
+	receiptUuid, err := uuid.Parse(body.ReceiptId)
+	if err != nil {
+		utils.BadRequest(c, "invalid receipt id")
+		return
+	}
+
+	outing, err := r.Repo.GetOutingForReceipt(*r.Ctx, receiptUuid)
+	if err != nil {
+		utils.BadRequest(c, "invalid outing id")
+		return
+	}
+
+	createFriend, err := toCreateFriend(body, outing)
+	if err != nil {
+		fmt.Println("ERR: ", err)
+		utils.BadRequest(c, "invalid request")
+		return
+	}
+
+	friendId, err := r.Repo.CreateOrGetFriend(*r.Ctx, createFriend)
+	if err != nil {
+		fmt.Println("ERR: ", err)
+		utils.InternalServerError(c, "failed to create friend")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"friendId": friendId})
+}
+
+func (r *receiptRepository) CreateSplit(c *gin.Context) {
+
+	var body CreateSplitInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		fmt.Println("ERR b: ", err)
+		utils.BadRequest(c, "invalid request")
+		return
+	}
+
+	createSplit, receiptId, err := toCreateSplit(body)
+	if err != nil {
+		utils.BadRequest(c, "invalid request")
+		return
+	}
+
+	if err = r.Repo.DeleteSplit(*r.Ctx, *receiptId); err != nil {
+		utils.BadRequest(c, "error deleting split")
+		return
+	}
+
+	for _, split := range *createSplit {
+		_, err := r.Repo.CreateSplit(*r.Ctx, split)
+		if err != nil {
+			utils.InternalServerError(c, "failed to create split")
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }

@@ -9,18 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sharithg/civet/internal/config"
 	"github.com/sharithg/civet/internal/repository"
-	"github.com/sharithg/civet/pkg/api/auth"
 )
 
-func CheckAuth(ctx *context.Context, r *repository.Queries) gin.HandlerFunc {
+func CheckAuth(ctx *context.Context, r *repository.Queries, config *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		config, err := auth.LoadConfig()
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Loading config"})
-			c.Abort()
-			return
-		}
 
 		var tokenString string
 

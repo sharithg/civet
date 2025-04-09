@@ -18,13 +18,22 @@ GROUP BY r.id;
 SELECT o.id,
     o.name,
     o.created_at,
-    COUNT(ri.id) AS total_receipts,
-    COUNT(fr.id) AS total_friends,
-    o.status
+    o.status,
+    COALESCE(f.friends, '[]') AS friends,
+    COALESCE(r.total_receipts, 0) AS total_receipts
 FROM outings o
-    LEFT JOIN receipt_images ri ON o.id = ri.outing_id
-    LEFT JOIN friends fr on o.id = fr.outing_id
-GROUP BY o.id;
+    LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('id', fr.id, 'name', fr.name)) AS friends
+        FROM friends fr
+        WHERE fr.outing_id = o.id
+    ) f ON true
+    LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT ri.id) AS total_receipts
+        FROM receipt_images ri
+        WHERE ri.outing_id = o.id
+    ) r ON true;
+
+;
 
 -- name: InsertReceiptImage :one
 INSERT INTO receipt_images (
@@ -138,8 +147,11 @@ SELECT r.id,
     r.copy,
     r.server,
     r.sales_tax,
+    ri.bucket,
+    ri.key,
     COALESCE(oi.items, '[]') AS items,
-    COALESCE(of.fees, '[]') AS fees
+    COALESCE(of.fees, '[]') AS fees,
+    COALESCE(spl.splits, '[]') AS splits
 FROM receipt_images ri
     JOIN receipts r ON ri.id = r.receipt_image_id
     LEFT JOIN (
@@ -154,5 +166,79 @@ FROM receipt_images ri
         FROM other_fees of
         GROUP BY receipt_id
     ) of ON r.id = of.receipt_id
+    LEFT JOIN (
+        SELECT receipt_id,
+            json_agg(
+                json_build_object(
+                    'id',
+                    sp.id,
+                    'friend_id',
+                    sp.friend_id,
+                    'order_item_id',
+                    sp.order_item_id
+                )
+            ) AS splits
+        FROM splits sp
+        GROUP BY receipt_id
+    ) spl ON r.id = spl.receipt_id
 WHERE r.id = $1
 LIMIT 1;
+
+-- name: CreateOrGetFriend :one
+with existing_friend as (
+    select id
+    from friends
+    where friends.user_id = $2
+        and friends.outing_id = $3
+        and $2 is not null
+    limit 1
+), inserted_friend as (
+    insert into friends (name, user_id, outing_id)
+    select $1,
+        $2,
+        $3
+    where not exists (
+            select 1
+            from existing_friend
+        )
+    returning id
+)
+select id
+from inserted_friend
+union all
+select id
+from existing_friend
+limit 1;
+
+-- name: CreateSplit :one
+insert into splits (friend_id, order_item_id, receipt_id, quantity)
+values ($1, $2, $3, $4)
+returning id;
+
+-- name: DeleteSplit :exec
+delete from splits
+where receipt_id = $1;
+
+-- name: GetFriends :many
+select fr.id,
+    fr.name
+from friends fr
+    join outings o on fr.outing_id = o.id
+    join receipt_images ri on o.id = ri.outing_id
+    join receipts r on r.receipt_image_id = ri.id
+where r.id = $1;
+
+-- name: GetOutingForReceipt :one
+select o.id
+from outings o
+    join receipt_images ri on o.id = ri.outing_id
+    join receipts r on ri.id = r.receipt_image_id
+where r.id = $1;
+
+-- name: GetReceiptImage :one
+select ri.bucket,
+    ri.key
+from receipt_images ri
+    join receipts r on ri.id = r.receipt_image_id
+where r.id = $1
+limit 1;

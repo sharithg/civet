@@ -12,10 +12,11 @@ import (
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
+	"github.com/sharithg/civet/internal/config"
 )
 
-func NewDatabase() *pgxpool.Pool {
-	dsn := os.Getenv("DATABASE_URL")
+func NewDatabase(config *config.Config) *pgxpool.Pool {
+	dsn := config.DbURL
 
 	sqlDB, err := sql.Open("postgres", dsn)
 	if err != nil {

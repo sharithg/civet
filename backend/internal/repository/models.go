@@ -15,7 +15,7 @@ import (
 type Friend struct {
 	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
-	UserID    uuid.UUID          `json:"user_id"`
+	UserID    *uuid.UUID         `json:"user_id"`
 	OutingID  uuid.UUID          `json:"outing_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
@@ -73,6 +73,16 @@ type ReceiptImage struct {
 	FileName string    `json:"file_name"`
 	Hash     string    `json:"hash"`
 	OutingID uuid.UUID `json:"outing_id"`
+}
+
+type Split struct {
+	ID          uuid.UUID          `json:"id"`
+	FriendID    uuid.UUID          `json:"friend_id"`
+	OrderItemID uuid.UUID          `json:"order_item_id"`
+	ReceiptID   uuid.UUID          `json:"receipt_id"`
+	Quantity    int32              `json:"quantity"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {
