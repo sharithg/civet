@@ -68,6 +68,7 @@ jobs:
 
       - name: create env file
         run: |
+          touch ./backend/envfile
           echo "GIT_COMMIT_HASH=${{ github.sha }}" > ./backend/envfile
 
       - name: Docker Stack Deploy
