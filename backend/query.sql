@@ -242,3 +242,50 @@ from receipt_images ri
     join receipts r on ri.id = r.receipt_image_id
 where r.id = $1
 limit 1;
+
+-- name: GetCachedCloudVisionResponse :one
+select response
+from cloud_vision_cache
+where image_hash = $1
+limit 1;
+
+-- name: GetCachedGenAiResponse :one
+select response
+from genai_cache
+where image_hash = $1
+limit 1;
+
+-- name: InsertCachedCloudVisionResponse :one
+insert into cloud_vision_cache (image_hash, response)
+values ($1, $2)
+returning id;
+
+-- name: InsertCachedGenAiResponse :one
+insert into genai_cache (image_hash, response)
+values ($1, $2)
+returning id;
+
+
+-- name: GetFriendsForOuting :many
+WITH unique_friends_per_receipt AS (
+    SELECT r.id AS receipt_id, COUNT(DISTINCT fr.id) AS friend_count
+    FROM receipts r
+    JOIN order_items it ON r.id = it.receipt_id
+    JOIN splits sp ON it.id = sp.order_item_id
+    JOIN friends fr ON sp.friend_id = fr.id
+    GROUP BY r.id
+)
+SELECT
+    fr.name,
+    (SUM(it.price * sp.quantity))::float AS subtotal,
+    (r.sales_tax / uf.friend_count)::float AS tax_portion,
+    (SUM(it.price * sp.quantity) + (r.sales_tax / uf.friend_count))::float AS total_owed
+FROM receipts r
+JOIN order_items it ON r.id = it.receipt_id
+JOIN splits sp ON it.id = sp.order_item_id
+JOIN friends fr ON sp.friend_id = fr.id
+JOIN receipt_images ri on r.receipt_image_id = ri.id
+JOIN outings ou on ri.outing_id = ou.id
+JOIN unique_friends_per_receipt uf ON r.id = uf.receipt_id
+WHERE ou.id = $1
+GROUP BY fr.id, fr.name, r.sales_tax, r.id, uf.friend_count;

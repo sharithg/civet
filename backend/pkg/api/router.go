@@ -29,7 +29,8 @@ type AppContext struct {
 func NewRouter(appCtx *AppContext) *gin.Engine {
 
 	authRepository := auth.New(appCtx.DB, appCtx.Repo, appCtx.Storage, appCtx.OpenAI, appCtx.Config, appCtx.Context)
-
+	outingsRepository := outing.New(appCtx.Repo, appCtx.Context)
+	receiptRepository := receipt.New(appCtx.Repo, appCtx.DB, appCtx.Storage, appCtx.OpenAI, appCtx.Context)
 	r := gin.Default()
 
 	r.Use(middleware.Cors())
@@ -48,9 +49,6 @@ func NewRouter(appCtx *AppContext) *gin.Engine {
 	v1 := r.Group("/api/v1")
 	v1.Use(middleware.CheckAuth(appCtx.Context, appCtx.Repo, appCtx.Config))
 
-	outingsRepository := outing.New(appCtx.Repo, appCtx.Context)
-	receiptRepository := receipt.New(appCtx.Repo, appCtx.DB, appCtx.Storage, appCtx.OpenAI, appCtx.Context)
-
 	{
 		receipts := v1.Group("/receipt")
 		{
@@ -67,7 +65,9 @@ func NewRouter(appCtx *AppContext) *gin.Engine {
 			outings.POST("", outingsRepository.CreateOuting)
 			outings.GET("", outingsRepository.GetOutings)
 			outings.GET("/:outing_id/receipts", outingsRepository.GetReceipts)
+			outings.GET("/:outing_id/friends", outingsRepository.GetFriends)
 		}
+
 	}
 
 	return r

@@ -12,11 +12,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CloudVisionCache struct {
+	ID        uuid.UUID          `json:"id"`
+	ImageHash string             `json:"image_hash"`
+	Response  []string           `json:"response"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Friend struct {
 	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
 	UserID    *uuid.UUID         `json:"user_id"`
 	OutingID  uuid.UUID          `json:"outing_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GenaiCache struct {
+	ID        uuid.UUID          `json:"id"`
+	ImageHash string             `json:"image_hash"`
+	Response  []byte             `json:"response"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }

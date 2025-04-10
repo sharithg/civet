@@ -45,6 +45,7 @@
     "js-cookie": "^3.0.5",
     "lodash": "^4.17.21",
     "lucide-react": "^0.486.0",
+    "lucide-react-native": "^0.487.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.8",

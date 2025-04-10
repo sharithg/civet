@@ -2,11 +2,8 @@ package genai
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -34,17 +31,6 @@ func NewOpenAiClient(config *config.Config) OpenAi {
 
 func JsonChat[T any](ctx context.Context, o *OpenAi, prompt string, input string, schemaName string, schema interface{}) (T, error) {
 	var zero T
-
-	cacheKey := computeCacheKey(prompt, input, schemaName, schema)
-	cachePath := filepath.Join(o.cacheDir, fmt.Sprintf("%s.json", cacheKey))
-
-	if content, err := os.ReadFile(cachePath); err == nil {
-		var cached T
-		if err := json.Unmarshal(content, &cached); err == nil {
-			fmt.Printf("Loaded cached OpenAI response: %s\n", cacheKey)
-			return cached, nil
-		}
-	}
 
 	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
 		Name:        schemaName,
@@ -74,25 +60,5 @@ func JsonChat[T any](ctx context.Context, o *OpenAi, prompt string, input string
 		return zero, err
 	}
 
-	if encoded, err := json.MarshalIndent(result, "", "  "); err == nil {
-		_ = os.WriteFile(cachePath, encoded, 0644)
-	}
-
 	return result, nil
-}
-
-func computeCacheKey(prompt, input, schemaName string, schema interface{}) string {
-	data, _ := json.Marshal(struct {
-		Prompt     string      `json:"prompt"`
-		Input      string      `json:"input"`
-		SchemaName string      `json:"schema_name"`
-		Schema     interface{} `json:"schema"`
-	}{
-		Prompt:     prompt,
-		Input:      input,
-		SchemaName: schemaName,
-		Schema:     schema,
-	})
-	hash := sha256.Sum256(data)
-	return fmt.Sprintf("%x", hash[:])
 }

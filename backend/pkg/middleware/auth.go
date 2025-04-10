@@ -23,7 +23,7 @@ func CheckAuth(ctx *context.Context, r *repository.Queries, config *config.Confi
 
 		if strings.ToLower(platform) == "web" {
 			// Get token from cookie
-			cookie, err := c.Cookie("auth_token")
+			cookie, err := c.Cookie(config.CookieName)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "auth_token cookie missing"})
 				c.Abort()

@@ -14,6 +14,7 @@ import { pickDocument, uploadImage } from "@/utils/upload";
 import Toast from "react-native-toast-message";
 import { authFetch } from "@/utils/api";
 import BackButton from "../../../../components/BackButton";
+import FriendsList from "@/components/FriendsList";
 
 type ReceiptData = {
   id: string;
@@ -29,14 +30,13 @@ const fetchReceipts = async (id: string) => {
 
 export default function OutingDetailScreen() {
   const [selectedTab, setSelectedTab] = useState("Receipts");
-  const backIcon = Platform.OS === "ios" ? "chevron-back" : "arrow-back-sharp";
   const { id, title } = useLocalSearchParams();
 
-  const receiptId = id as string;
+  const outingId = id as string;
 
   const { data, refetch } = useQuery({
-    queryFn: () => fetchReceipts(receiptId),
-    queryKey: [receiptId],
+    queryFn: () => fetchReceipts(outingId),
+    queryKey: [outingId],
   });
 
   return (
@@ -127,6 +127,7 @@ export default function OutingDetailScreen() {
             )}
           />
         )}
+        {selectedTab === "Friends" && <FriendsList outingId={outingId} />}
       </View>
     </>
   );

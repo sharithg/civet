@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/sharithg/civet/internal/cloudvision"
 	"github.com/sharithg/civet/internal/genai"
+	"github.com/sharithg/civet/internal/repository"
 	"github.com/sharithg/civet/internal/storage"
 )
 
@@ -25,9 +27,10 @@ type Extract struct {
 	visionClient *cloudvision.CloudVision
 	openaiClient genai.OpenAi
 	storage      storage.Storage
+	Repo         *repository.Queries
 }
 
-func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenAi, imageBytes []byte, fname string) (*Extract, error) {
+func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenAi, repo *repository.Queries, imageBytes []byte, fname string) (*Extract, error) {
 	hash := sha256.Sum256(imageBytes)
 	imageHash := hex.EncodeToString(hash[:])
 	ext := strings.TrimPrefix(filepath.Ext(fname), ".")
@@ -37,8 +40,6 @@ func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenA
 		return nil, err
 	}
 
-	// openaiClient := genai.NewOpenAiClient()
-
 	return &Extract{
 		ImageBytes:   imageBytes,
 		FileName:     fname,
@@ -47,6 +48,7 @@ func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenA
 		visionClient: visionClient,
 		openaiClient: openai,
 		storage:      storage,
+		Repo:         repo,
 	}, nil
 }
 
@@ -58,18 +60,67 @@ func (e *Extract) Upload(ctx context.Context) (bucket, key string, err error) {
 }
 
 func (e *Extract) ExtractText(ctx context.Context) (string, error) {
-	annotations, err := e.visionClient.DetectText(ctx, e.ImageBytes, e.ImageHash)
+	existing, err := e.Repo.GetCachedCloudVisionResponse(ctx, e.ImageHash)
+	if err != nil {
+		return "", err
+	}
+
+	if existing != nil {
+		return strings.Join(existing, "\n"), nil
+	}
+
+	annotations, err := e.visionClient.DetectText(ctx, e.ImageBytes)
 	if err != nil {
 		return "", err
 	}
 	lines := GroupTextByLines(annotations, 10)
+	_, err = e.Repo.InsertCachedCloudVisionResponse(ctx, repository.InsertCachedCloudVisionResponseParams{
+		ImageHash: e.ImageHash,
+		Response:  lines,
+	})
+	if err != nil {
+		return "", err
+	}
+
 	return strings.Join(lines, "\n"), nil
 }
 
 func (e *Extract) StructuredOutput(ctx context.Context, input string) (Receipt, error) {
 	var Schema = GenerateSchema[Receipt]()
 
-	return genai.JsonChat[Receipt](ctx, &e.openaiClient, prompt, input, "receipt_info", Schema)
+	existing, err := e.Repo.GetCachedGenAiResponse(ctx, e.ImageHash)
+	if err != nil {
+		return Receipt{}, err
+	}
+
+	if existing != nil {
+		var output Receipt
+		err = json.Unmarshal(existing, &output)
+		if err != nil {
+			return Receipt{}, err
+		}
+		return output, nil
+	}
+
+	output, err := genai.JsonChat[Receipt](ctx, &e.openaiClient, prompt, input, "receipt_info", Schema)
+	if err != nil {
+		return Receipt{}, err
+	}
+
+	jsonOutput, err := json.Marshal(output)
+	if err != nil {
+		return Receipt{}, err
+	}
+
+	_, err = e.Repo.InsertCachedGenAiResponse(ctx, repository.InsertCachedGenAiResponseParams{
+		ImageHash: e.ImageHash,
+		Response:  jsonOutput,
+	})
+	if err != nil {
+		return Receipt{}, err
+	}
+
+	return output, nil
 }
 
 func (e *Extract) Run(ctx context.Context) (ParsedReceipt, string, string, string, error) {

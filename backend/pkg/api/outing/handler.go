@@ -86,3 +86,19 @@ func (r *Repository) GetReceipts(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, toOutingReceiptsResponse(receipts))
 }
+
+func (r *Repository) GetFriends(c *gin.Context) {
+	outingId := c.Param("outing_id")
+	outingIdUuid, err := uuid.Parse(outingId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid outing ID"})
+		return
+	}
+	friends, err := r.Repo.GetFriendsForOuting(*r.Ctx, outingIdUuid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, friends)
+}

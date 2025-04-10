@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { authFetch } from "@/utils/api";
 import { useSetAtom } from "jotai";
 import { OutingData, selectedOutingAtom } from "@/utils/state";
+import FloatingActionButton from "@/components/FloatingActionButton";
 
 const fetchOutings = async () => {
   const result = authFetch<OutingData[]>("outing");
@@ -128,6 +129,7 @@ export default function OutingsPage() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        <FloatingActionButton onPress={() => setModalVisible(true)} />
       </SafeAreaView>
     </SafeAreaProvider>
   );

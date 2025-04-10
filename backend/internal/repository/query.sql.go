@@ -138,6 +138,34 @@ func (q *Queries) DeleteSplit(ctx context.Context, receiptID uuid.UUID) error {
 	return err
 }
 
+const getCachedCloudVisionResponse = `-- name: GetCachedCloudVisionResponse :one
+select response
+from cloud_vision_cache
+where image_hash = $1
+limit 1
+`
+
+func (q *Queries) GetCachedCloudVisionResponse(ctx context.Context, imageHash string) ([]string, error) {
+	row := q.db.QueryRow(ctx, getCachedCloudVisionResponse, imageHash)
+	var response []string
+	err := row.Scan(&response)
+	return response, err
+}
+
+const getCachedGenAiResponse = `-- name: GetCachedGenAiResponse :one
+select response
+from genai_cache
+where image_hash = $1
+limit 1
+`
+
+func (q *Queries) GetCachedGenAiResponse(ctx context.Context, imageHash string) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getCachedGenAiResponse, imageHash)
+	var response []byte
+	err := row.Scan(&response)
+	return response, err
+}
+
 const getFriends = `-- name: GetFriends :many
 select fr.id,
     fr.name
@@ -163,6 +191,63 @@ func (q *Queries) GetFriends(ctx context.Context, id uuid.UUID) ([]GetFriendsRow
 	for rows.Next() {
 		var i GetFriendsRow
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFriendsForOuting = `-- name: GetFriendsForOuting :many
+WITH unique_friends_per_receipt AS (
+    SELECT r.id AS receipt_id, COUNT(DISTINCT fr.id) AS friend_count
+    FROM receipts r
+    JOIN order_items it ON r.id = it.receipt_id
+    JOIN splits sp ON it.id = sp.order_item_id
+    JOIN friends fr ON sp.friend_id = fr.id
+    GROUP BY r.id
+)
+SELECT
+    fr.name,
+    (SUM(it.price * sp.quantity))::float AS subtotal,
+    (r.sales_tax / uf.friend_count)::float AS tax_portion,
+    (SUM(it.price * sp.quantity) + (r.sales_tax / uf.friend_count))::float AS total_owed
+FROM receipts r
+JOIN order_items it ON r.id = it.receipt_id
+JOIN splits sp ON it.id = sp.order_item_id
+JOIN friends fr ON sp.friend_id = fr.id
+JOIN receipt_images ri on r.receipt_image_id = ri.id
+JOIN outings ou on ri.outing_id = ou.id
+JOIN unique_friends_per_receipt uf ON r.id = uf.receipt_id
+WHERE ou.id = $1
+GROUP BY fr.id, fr.name, r.sales_tax, r.id, uf.friend_count
+`
+
+type GetFriendsForOutingRow struct {
+	Name       string  `json:"name"`
+	Subtotal   float64 `json:"subtotal"`
+	TaxPortion float64 `json:"tax_portion"`
+	TotalOwed  float64 `json:"total_owed"`
+}
+
+func (q *Queries) GetFriendsForOuting(ctx context.Context, id uuid.UUID) ([]GetFriendsForOutingRow, error) {
+	rows, err := q.db.Query(ctx, getFriendsForOuting, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFriendsForOutingRow
+	for rows.Next() {
+		var i GetFriendsForOutingRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Subtotal,
+			&i.TaxPortion,
+			&i.TotalOwed,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -496,6 +581,42 @@ func (q *Queries) GetUserBySub(ctx context.Context, sub string) (GetUserBySubRow
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const insertCachedCloudVisionResponse = `-- name: InsertCachedCloudVisionResponse :one
+insert into cloud_vision_cache (image_hash, response)
+values ($1, $2)
+returning id
+`
+
+type InsertCachedCloudVisionResponseParams struct {
+	ImageHash string   `json:"image_hash"`
+	Response  []string `json:"response"`
+}
+
+func (q *Queries) InsertCachedCloudVisionResponse(ctx context.Context, arg InsertCachedCloudVisionResponseParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertCachedCloudVisionResponse, arg.ImageHash, arg.Response)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertCachedGenAiResponse = `-- name: InsertCachedGenAiResponse :one
+insert into genai_cache (image_hash, response)
+values ($1, $2)
+returning id
+`
+
+type InsertCachedGenAiResponseParams struct {
+	ImageHash string `json:"image_hash"`
+	Response  []byte `json:"response"`
+}
+
+func (q *Queries) InsertCachedGenAiResponse(ctx context.Context, arg InsertCachedGenAiResponseParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertCachedGenAiResponse, arg.ImageHash, arg.Response)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertOrderItem = `-- name: InsertOrderItem :exec

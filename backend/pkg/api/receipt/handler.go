@@ -179,12 +179,14 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 	}
 
 	if !strings.HasPrefix(fileHeader.Header.Get("Content-Type"), "image/") {
+		fmt.Println("Error on file type: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only image files are allowed"})
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
+		fmt.Println("Error on opening file: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "opening file"})
 		return
 	}
@@ -192,13 +194,15 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 
 	data, err := io.ReadAll(file)
 	if err != nil {
+		fmt.Println("Error on reading file data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "reading file data"})
 		return
 	}
 
-	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, r.Genai, data, fileHeader.Filename)
+	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, r.Genai, r.Repo, data, fileHeader.Filename)
 
 	if err != nil {
+		fmt.Println("Error on starting extraction: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "starting extraction"})
 		return
 	}
@@ -206,7 +210,7 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 	existing, err := r.GetReceiptByHash(fileInfo.ImageHash)
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error on getting existing receipt image: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get existing receipt image"})
 		return
 	}
@@ -219,13 +223,13 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 	model, text, bucket, key, err := fileInfo.Run(*r.Ctx)
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error on running model: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload receipt image"})
 		return
 	}
 
 	if err = r.SaveReceipt(r.Repo, fileInfo.ImageHash, bucket, key, text, fileHeader.Filename, outingId, model); err != nil {
-		fmt.Println(err)
+		fmt.Println("Error on saving receipt: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save receipt image"})
 		return
 	}
@@ -244,13 +248,13 @@ func (r *receiptRepository) GetReceipt(c *gin.Context) {
 	receipt, err := r.Repo.GetReceipt(*r.Ctx, receiptId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching recept"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching receipt"})
 		return
 	}
 
 	url, err := r.Storage.GetObjectUrl(*r.Ctx, receipt.Bucket, receipt.Key)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "fetching recept"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "getting object url"})
 		return
 	}
 
