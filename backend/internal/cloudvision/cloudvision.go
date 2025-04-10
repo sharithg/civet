@@ -8,6 +8,7 @@ import (
 
 	vision "cloud.google.com/go/vision/apiv1"
 	visionpb "cloud.google.com/go/vision/v2/apiv1/visionpb"
+	"google.golang.org/api/option"
 )
 
 type CloudVision struct {
@@ -15,8 +16,14 @@ type CloudVision struct {
 	cacheDir string
 }
 
-func NewCloudVision(ctx context.Context, cacheDir string) (*CloudVision, error) {
-	client, err := vision.NewImageAnnotatorClient(ctx)
+func NewCloudVision(ctx context.Context, cacheDir string, credentials string) (*CloudVision, error) {
+	var client *vision.ImageAnnotatorClient
+	var err error
+	if credentials == "" {
+		client, err = vision.NewImageAnnotatorClient(ctx)
+	} else {
+		client, err = vision.NewImageAnnotatorClient(ctx, option.WithCredentialsFile(credentials))
+	}
 	if err != nil {
 		return nil, err
 	}

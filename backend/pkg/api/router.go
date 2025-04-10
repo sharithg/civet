@@ -30,7 +30,7 @@ func NewRouter(appCtx *AppContext) *gin.Engine {
 
 	authRepository := auth.New(appCtx.DB, appCtx.Repo, appCtx.Storage, appCtx.OpenAI, appCtx.Config, appCtx.Context)
 	outingsRepository := outing.New(appCtx.Repo, appCtx.Context)
-	receiptRepository := receipt.New(appCtx.Repo, appCtx.DB, appCtx.Storage, appCtx.OpenAI, appCtx.Context)
+	receiptRepository := receipt.New(appCtx.Repo, appCtx.DB, appCtx.Storage, appCtx.OpenAI, appCtx.Context, appCtx.Config)
 	r := gin.Default()
 
 	r.Use(middleware.Cors())

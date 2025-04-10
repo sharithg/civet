@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sharithg/civet/internal/config"
 	"github.com/sharithg/civet/internal/genai"
 	"github.com/sharithg/civet/internal/receipt"
 	"github.com/sharithg/civet/internal/repository"
@@ -39,15 +40,17 @@ type receiptRepository struct {
 	Storage *storage.Storage
 	Genai   genai.OpenAi
 	Db      *pgxpool.Pool
+	Config  *config.Config
 }
 
-func New(repo *repository.Queries, db *pgxpool.Pool, storage *storage.Storage, genai genai.OpenAi, ctx *context.Context) *receiptRepository {
+func New(repo *repository.Queries, db *pgxpool.Pool, storage *storage.Storage, genai genai.OpenAi, ctx *context.Context, config *config.Config) *receiptRepository {
 	return &receiptRepository{
 		Repo:    repo,
 		Ctx:     ctx,
 		Storage: storage,
 		Genai:   genai,
 		Db:      db,
+		Config:  config,
 	}
 }
 
@@ -199,7 +202,7 @@ func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
 		return
 	}
 
-	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, r.Genai, r.Repo, data, fileHeader.Filename)
+	fileInfo, err := receipt.NewExtract(*r.Ctx, *r.Storage, r.Genai, r.Repo, data, fileHeader.Filename, r.Config.CloudVisionCredentials)
 
 	if err != nil {
 		fmt.Println("Error on starting extraction: ", err)

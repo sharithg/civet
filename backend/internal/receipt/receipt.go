@@ -30,12 +30,12 @@ type Extract struct {
 	Repo         *repository.Queries
 }
 
-func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenAi, repo *repository.Queries, imageBytes []byte, fname string) (*Extract, error) {
+func NewExtract(ctx context.Context, storage storage.Storage, openai genai.OpenAi, repo *repository.Queries, imageBytes []byte, fname string, credentials string) (*Extract, error) {
 	hash := sha256.Sum256(imageBytes)
 	imageHash := hex.EncodeToString(hash[:])
 	ext := strings.TrimPrefix(filepath.Ext(fname), ".")
 
-	visionClient, err := cloudvision.NewCloudVision(ctx, "cache/cloud_vision")
+	visionClient, err := cloudvision.NewCloudVision(ctx, "cache/cloud_vision", credentials)
 	if err != nil {
 		return nil, err
 	}

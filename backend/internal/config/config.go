@@ -39,6 +39,9 @@ type Config struct {
 
 	// openai
 	OpenAIAPIKey string
+
+	// cloud vision
+	CloudVisionCredentials string
 }
 
 func LoadConfig() *Config {
@@ -80,6 +83,9 @@ func LoadConfig() *Config {
 
 		// openai
 		OpenAIAPIKey: envOrPanic("OPENAI_API_KEY"),
+
+		// cloud vision
+		CloudVisionCredentials: getenv("GOOGLE_CLOUD_VISION_CREDENTIALS", ""),
 	}
 
 	return cfg
