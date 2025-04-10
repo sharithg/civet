@@ -16,7 +16,7 @@ func Cors() gin.HandlerFunc {
 			"http://localhost:8001",
 			"http://localhost:8081"},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Authorization", "Content-Type", "X-CSRF-Token", "platform"},
+		AllowHeaders: []string{"Authorization", "Content-Type", "X-CSRF-Token", "platform", "outingid"},
 		//ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		//AllowOriginFunc: func(origin string) bool {

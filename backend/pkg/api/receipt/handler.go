@@ -88,12 +88,15 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 		Server:         receipt.Server,
 		Subtotal: sql.NullFloat64{
 			Float64: receipt.Subtotal,
+			Valid:   true,
 		},
 		SalesTax: sql.NullFloat64{
 			Float64: receipt.SalesTax,
+			Valid:   true,
 		},
 		Total: sql.NullFloat64{
 			Float64: receipt.Total,
+			Valid:   true,
 		},
 		Copy: receipt.Copy,
 	})
@@ -108,6 +111,7 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 			Name:      item.Name,
 			Price: sql.NullFloat64{
 				Float64: item.Price,
+				Valid:   true,
 			},
 			Quantity: int32(item.Quantity),
 		})
@@ -116,6 +120,8 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 		}
 	}
 
+	fmt.Printf("receipt.OtherFees: %#v\n", receipt.OtherFees)
+
 	// 4. Insert other_fees
 	for _, fee := range receipt.OtherFees {
 		err = qtx.InsertOtherFee(*r.Ctx, repository.InsertOtherFeeParams{
@@ -123,6 +129,7 @@ func (r *receiptRepository) SaveReceipt(repo *repository.Queries, hash, bucket, 
 			Name:      fee.Name,
 			Price: sql.NullFloat64{
 				Float64: fee.Price,
+				Valid:   true,
 			},
 		})
 		if err != nil {
@@ -171,9 +178,10 @@ func (r *receiptRepository) GetReceiptByHash(hash string) (*ReceiptWithDetails, 
 }
 
 func (r *receiptRepository) ProcessReceipt(c *gin.Context) {
-	fileHeader, err := c.FormFile("photo.0")
 
-	outingId := uuid.MustParse(c.GetHeader("outingId"))
+	outingId := uuid.MustParse(c.GetHeader("outingid"))
+
+	fileHeader, err := c.FormFile("photo.0")
 
 	if err != nil {
 		fmt.Println("Error: ", err)

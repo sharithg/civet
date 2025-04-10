@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/sharithg/civet/internal/cloudvision"
 	"github.com/sharithg/civet/internal/genai"
 	"github.com/sharithg/civet/internal/repository"
@@ -61,11 +63,12 @@ func (e *Extract) Upload(ctx context.Context) (bucket, key string, err error) {
 
 func (e *Extract) ExtractText(ctx context.Context) (string, error) {
 	existing, err := e.Repo.GetCachedCloudVisionResponse(ctx, e.ImageHash)
-	if err != nil {
+
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return "", err
 	}
 
-	if existing != nil {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return strings.Join(existing, "\n"), nil
 	}
 
@@ -89,11 +92,11 @@ func (e *Extract) StructuredOutput(ctx context.Context, input string) (Receipt, 
 	var Schema = GenerateSchema[Receipt]()
 
 	existing, err := e.Repo.GetCachedGenAiResponse(ctx, e.ImageHash)
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return Receipt{}, err
 	}
 
-	if existing != nil {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		var output Receipt
 		err = json.Unmarshal(existing, &output)
 		if err != nil {
@@ -140,6 +143,7 @@ func (e *Extract) Run(ctx context.Context) (ParsedReceipt, string, string, strin
 	}
 
 	model, err := e.ToModel(out)
+
 	if err != nil {
 		return ParsedReceipt{}, "", "", "", err
 	}
