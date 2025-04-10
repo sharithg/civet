@@ -70,13 +70,14 @@ services:
       - jwt_secret
       - openai_api_key
       - google_client_secret
+      - cloud_vision_credentials
     environment:
       - DATABASE_URL_FILE=/run/secrets/db_url
       - MINIIO_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_access_key
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
       - GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret
-      - GOOGLE_CLOUD_VISION_CREDENTIALS_FILE=/run/secrets/cloud_vision_credentials
+      - GOOGLE_CLOUD_VISION_CREDENTIALS=/run/secrets/cloud_vision_credentials
       - GOOGLE_CLIENT_ID=1023244446405-fd2nnurb57nhn4k20cc3p0fsjqgtc0fk.apps.googleusercontent.com
       - MINIIO_HOST=localhost:9000
       - MINIIO_ACCESS_KEY_ID=ROOTNAME
@@ -102,6 +103,8 @@ secrets:
   openai_api_key:
     external: true
   google_client_secret:
+    external: true
+  cloud_vision_credentials:
     external: true
 
 volumes:

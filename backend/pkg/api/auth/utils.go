@@ -10,12 +10,12 @@ import (
 func GetUser(c *gin.Context) (repository.GetUserBySubRow, error) {
 	userRaw, exists := c.Get("currentUser")
 	if !exists {
-		return repository.GetUserBySubRow{}, errors.New("User not authenticated")
+		return repository.GetUserBySubRow{}, errors.New("user not authenticated")
 	}
 
 	user, ok := userRaw.(repository.GetUserBySubRow)
 	if !ok {
-		return repository.GetUserBySubRow{}, errors.New("Failed to cast user")
+		return repository.GetUserBySubRow{}, errors.New("failed to cast user")
 	}
 
 	return user, nil

@@ -44,6 +44,10 @@ func GenerateTokens(sub string, jwtExp time.Duration, jwtSecret string, refreshE
 	claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(now.Add(refreshExp * time.Second))
 
 	refreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(jwtSecret))
+	if err != nil {
+		return "", "", 0, err
+	}
+
 	return accessToken, refreshToken, issuedAt, nil
 }
 

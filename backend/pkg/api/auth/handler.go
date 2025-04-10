@@ -315,11 +315,6 @@ func (a *authRepository) GoogleAuthTokenHandler(c *gin.Context) {
 		return
 	}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		return
-	}
-
 	userInfo := map[string]string{
 		"sub":           sub,
 		"email":         email,
@@ -339,6 +334,11 @@ func (a *authRepository) GoogleAuthTokenHandler(c *gin.Context) {
 		Picture:       picture,
 		EmailVerified: emailVerified,
 	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
 
 	if platform == "web" {
 		// Set cookies
